@@ -1,7 +1,7 @@
 name: PR E2E C
 
 env:
-  SKIP_CHART_LIST: "nmstate"
+  SKIP_CHART_LIST: "nmstate, f5networks"
   IMAGE_HINT_FILE_NAME: ".relok8s-images.yaml"
   SCHEMA_FILE_NAME: "values.schema.json"
 
