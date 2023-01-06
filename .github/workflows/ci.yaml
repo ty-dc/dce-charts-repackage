@@ -1,9 +1,10 @@
 name: PR E2E C
 
 env:
-  SKIP_CHART_LIST: "nmstate, f5networks"
+  SKIP_CHART_LIST: "nmstate"
   IMAGE_HINT_FILE_NAME: ".relok8s-images.yaml"
   SCHEMA_FILE_NAME: "values.schema.json"
+  SKIP_MAKE_UPGRADE: "f5networks"
 
 on:
   pull_request_target:
@@ -152,6 +153,7 @@ jobs:
       - name: check upgrade
         run: |
           for PROJECT in ${{ steps.check_change.outputs.changed_project }} ; do
+               grep " ${PROJECT} " <<< " ${{ env.SKIP_MAKE_UPGRADE }} " && continue
                make build_chart -e PROJECT=${PROJECT} \
                   || { echo "error, failed to call 'make build_chart' to update ${PROJECT} " ; exit 1 ; }
               if ! git diff --exit-code --quiet ; then

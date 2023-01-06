@@ -67,5 +67,6 @@ grep "requests_memory:" ./f5-bigip-ctlr/values.yaml -Rl   | xargs -n 1 -i sed -i
 grep "requests_cpu:" ./f5-ipam-controller/values.yaml -Rl   | xargs -n 1 -i sed -i "s?# requests_cpu:.*?requests_cpu: $CUSTOM_F5_IPAM_CPU?" {}
 grep "requests_memory:" ./f5-ipam-controller/values.yaml -Rl   | xargs -n 1 -i sed -i "s?# requests_memory:.*?requests_memory: $CUSTOM_F5_IPAM_MEMORY?" {}
 
-
-
+# Solve the issue: https://github.com/DaoCloud/dce-charts-repackage/issues/489
+cd ../templates
+grep "  namespace: " ./* -Rl   | xargs -n 1 -i sed -i 's?namespace:.*?namespace: {{ .Release.Namespace }}?' {}
