@@ -41,6 +41,8 @@ argo-cd:
     # -- Default domain used by all components
     ## Used for ingresses, certificates, SSO, notifications, etc.
     domain: argocd.example.com
+    # -- Runtime class name for all components
+    runtimeClassName: ""
     # -- Common labels for the all resources
     additionalLabels: {}
     # app: argo-cd
@@ -52,7 +54,7 @@ argo-cd:
       # -- If defined, a repository applied to all Argo CD deployments
       repository: argoproj/argocd
       # -- Overrides the global Argo CD image tag whose default is the chart appVersion
-      tag: "v2.11.2"
+      tag: "v2.12.4"
       # -- If defined, a imagePullPolicy applied to all Argo CD deployments
       imagePullPolicy: IfNotPresent
       registry: quay.m.daocloud.io
@@ -201,6 +203,25 @@ argo-cd:
     #     - profile
     #     - email
 
+    # Extension Configuration
+    ## Ref: https://argo-cd.readthedocs.io/en/latest/developer-guide/extensions/proxy-extensions/
+    # extension.config: |
+    #   extensions:
+    #   - name: httpbin
+    #     backend:
+    #       connectionTimeout: 2s
+    #       keepAlive: 15s
+    #       idleConnectionTimeout: 60s
+    #       maxIdleConnections: 30
+    #       services:
+    #       - url: http://httpbin.org
+    #         headers:
+    #         - name: some-header
+    #           value: '$some.argocd.secret.key'
+    #         cluster:
+    #           name: some-cluster
+    #           server: https://some-cluster
+
     # Argo CD configuration parameters
     ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-cmd-params-cm.yaml
     params:
@@ -235,6 +256,8 @@ argo-cd:
       server.disable.auth: false
       # -- Enable GZIP compression
       server.enable.gzip: true
+      # -- Enable proxy extension feature. (proxy extension is in Alpha phase)
+      server.enable.proxy.extension: false
       # -- Set X-Frame-Options header in HTTP responses to value. To disable, set to "".
       server.x.frame.options: sameorigin
       ## Repo-server properties
@@ -245,6 +268,10 @@ argo-cd:
       applicationsetcontroller.policy: sync
       # -- Enables use of the Progressive Syncs capability
       applicationsetcontroller.enable.progressive.syncs: false
+      # -- A list of glob patterns specifying where to look for ApplicationSet resources. (e.g. `"argocd,argocd-appsets-*"`)
+      # @default -- `""` (default is only the ns where the controller is installed)
+      ## For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Appset-Any-Namespace/
+      applicationsetcontroller.namespaces: ""
       # -- Enables [Applications in any namespace]
       ## List of additional namespaces where applications may be created in and reconciled from.
       ## The namespace where Argo CD is installed to will always be allowed.
@@ -413,6 +440,16 @@ argo-cd:
     #     tlsClientConfig:
     #       insecure: false
     #       caData: "<base64 encoded certificate>"
+    # mycluster4-sharded:
+    #   shard: 1
+    #   server: https://mycluster4.example.com
+    #   labels: {}
+    #   annotations: {}
+    #   config:
+    #     bearerToken: "<authentication token>"
+    #     tlsClientConfig:
+    #       insecure: false
+    #       caData: "<base64 encoded certificate>"
 
     # -- Repository credentials to be used as Templates for other repos
     ## Creates a secret for each key/value specified below to create repository credentials
@@ -551,6 +588,9 @@ argo-cd:
     ## clusters are distributed according to the algorithm. If the algorithm is well-balanced,
     ## like round-robin, then the shards will be well-balanced.
     dynamicClusterDistribution: false
+    # -- Runtime class name for the application controller
+    # @default -- `""` (defaults to global.runtimeClassName)
+    runtimeClassName: ""
     # -- Application controller heartbeat time
     # Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/dynamic-cluster-distribution/#working-of-dynamic-distribution
     heartbeatTime: 10
@@ -827,6 +867,9 @@ argo-cd:
     name: dex-server
     # -- Additional command line arguments to pass to the Dex server
     extraArgs: []
+    # -- Runtime class name for Dex
+    # @default -- `""` (defaults to global.runtimeClassName)
+    runtimeClassName: ""
     metrics:
       # -- Deploy metrics service
       enabled: false
@@ -1098,6 +1141,9 @@ argo-cd:
     enabled: true
     # -- Redis name
     name: redis
+    # -- Runtime class name for redis
+    # @default -- `""` (defaults to global.runtimeClassName)
+    runtimeClassName: ""
     ## Redis Pod Disruption Budget
     ## Ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
     pdb:
@@ -1491,7 +1537,7 @@ argo-cd:
     password: ""
     # -- External Redis server port
     port: 6379
-    # -- The name of an existing secret with Redis credentials (must contain key `redis-password`).
+    # -- The name of an existing secret with Redis (must contain key `redis-password`) and Sentinel credentials.
     # When it's set, the `externalRedis.password` parameter is ignored
     existingSecret: ""
     # -- External Redis Secret annotations
@@ -1507,7 +1553,7 @@ argo-cd:
       repository: "argoproj/argocd" # defaults to global.image.repository
       # -- Tag to use for the Redis secret-init Job
       # @default -- `""` (defaults to global.image.tag)
-      tag: "v2.11.2" # defaults to global.image.tag
+      tag: "v2.12.4" # defaults to global.image.tag
       # -- Image pull policy for the Redis secret-init Job
       # @default -- `""` (defaults to global.image.imagePullPolicy)
       imagePullPolicy: "" # IfNotPresent
@@ -1561,6 +1607,8 @@ argo-cd:
     # -- Priority class for Redis secret-init Job
     # @default -- `""` (defaults to global.priorityClassName)
     priorityClassName: ""
+    # -- Assign custom [affinity] rules to the Redis secret-init Job
+    affinity: {}
     # -- Node selector to be added to the Redis secret-init Job
     # @default -- `{}` (defaults to global.nodeSelector)
     nodeSelector: {}
@@ -1573,6 +1621,9 @@ argo-cd:
     name: server
     # -- The number of server pods to run
     replicas: 1
+    # -- Runtime class name for the Argo CD server
+    # @default -- `""` (defaults to global.runtimeClassName)
+    runtimeClassName: ""
     ## Argo CD server Horizontal Pod Autoscaler
     autoscaling:
       # -- Enable Horizontal Pod Autoscaler ([HPA]) for the Argo CD server
@@ -1852,8 +1903,6 @@ argo-cd:
     certificate:
       # -- Deploy a Certificate resource (requires cert-manager)
       enabled: false
-      # -- The name of the Secret that will be automatically created and managed by this Certificate resource
-      secretName: argocd-server-tls
       # -- Certificate primary domain (commonName)
       # @default -- `""` (defaults to global.domain)
       domain: ""
@@ -1891,6 +1940,8 @@ argo-cd:
       # -- Usages for the certificate
       ### Ref: https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.KeyUsage
       usages: []
+      # -- Annotations that allow the certificate to be composed from data residing in existing Kubernetes Resources
+      secretTemplateAnnotations: {}
     # TLS certificate configuration via Secret
     ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/tls/#tls-certificates-used-by-argocd-server
     certificateSecret:
@@ -1927,6 +1978,8 @@ argo-cd:
       # -- Server service https port appProtocol
       ## Ref: https://kubernetes.io/docs/concepts/services-networking/service/#application-protocol
       servicePortHttpsAppProtocol: ""
+      # -- The class of the load balancer implementation
+      loadBalancerClass: ""
       # -- LoadBalancer will get created with the IP specified in this field
       loadBalancerIP: ""
       # -- Source IP ranges to allow access to service from
@@ -2191,6 +2244,9 @@ argo-cd:
     name: repo-server
     # -- The number of repo server pods to run
     replicas: 1
+    # -- Runtime class name for the repo server
+    # @default -- `""` (defaults to global.runtimeClassName)
+    runtimeClassName: ""
     ## Repo server Horizontal Pod Autoscaler
     autoscaling:
       # -- Enable Horizontal Pod Autoscaler ([HPA]) for the repo server
@@ -2551,6 +2607,9 @@ argo-cd:
     name: applicationset-controller
     # -- The number of ApplicationSet controller pods to run
     replicas: 1
+    # -- Runtime class name for the ApplicationSet controller
+    # @default -- `""` (defaults to global.runtimeClassName)
+    runtimeClassName: ""
     ## ApplicationSet controller Pod Disruption Budget
     ## Ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
     pdb:
@@ -2785,8 +2844,6 @@ argo-cd:
     certificate:
       # -- Deploy a Certificate resource (requires cert-manager)
       enabled: false
-      # -- The name of the Secret that will be automatically created and managed by this Certificate resource
-      secretName: argocd-applicationset-controller-tls
       # -- Certificate primary domain (commonName)
       # @default -- `""` (defaults to global.domain)
       domain: ""
@@ -2890,6 +2947,9 @@ argo-cd:
     # -- Argo CD dashboard url; used in place of {{.context.argocdUrl}} in templates
     # @default -- `""` (defaults to https://`global.domain`)
     argocdUrl: ""
+    # -- Runtime class name for the notifications controller
+    # @default -- `""` (defaults to global.runtimeClassName)
+    runtimeClassName: ""
     ## Notifications controller Pod Disruption Budget
     ## Ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
     pdb:
@@ -3061,6 +3121,34 @@ argo-cd:
       capabilities:
         drop:
           - ALL
+    ## Probes for notifications controller Pods (optional)
+    ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
+    readinessProbe:
+      # -- Enable Kubernetes liveness probe for notifications controller Pods
+      enabled: false
+      # -- Number of seconds after the container has started before [probe] is initiated
+      initialDelaySeconds: 10
+      # -- How often (in seconds) to perform the [probe]
+      periodSeconds: 10
+      # -- Number of seconds after which the [probe] times out
+      timeoutSeconds: 1
+      # -- Minimum consecutive successes for the [probe] to be considered successful after having failed
+      successThreshold: 1
+      # -- Minimum consecutive failures for the [probe] to be considered failed after having succeeded
+      failureThreshold: 3
+    livenessProbe:
+      # -- Enable Kubernetes liveness probe for notifications controller Pods
+      enabled: false
+      # -- Number of seconds after the container has started before [probe] is initiated
+      initialDelaySeconds: 10
+      # -- How often (in seconds) to perform the [probe]
+      periodSeconds: 10
+      # -- Number of seconds after which the [probe] times out
+      timeoutSeconds: 1
+      # -- Minimum consecutive successes for the [probe] to be considered successful after having failed
+      successThreshold: 1
+      # -- Minimum consecutive failures for the [probe] to be considered failed after having succeeded
+      failureThreshold: 3
     # -- terminationGracePeriodSeconds for container lifecycle hook
     terminationGracePeriodSeconds: 30
     # -- [Node selector]
